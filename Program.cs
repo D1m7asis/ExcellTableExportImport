@@ -1,30 +1,24 @@
 ﻿using ClosedXML.Excel;
-using System.Collections;
+using System;
+using System.Collections.Generic;
 
-namespace ExcellTableExportImport
+namespace ExcelTableExportImport
 {
     public class ExcelPriceModel
     {
-        public ArrayList Array { get; set; }
+        public Dictionary<string, object> models;
 
-        public ExcelPriceModel(ArrayList array)
+        public ExcelPriceModel(Dictionary<string, object> models)
         {
-            this.Array = array;
+            this.models = models;
         }
     }
 
-    class Program
+    public class Program
     {
-        static void Main(string[] args)
-        {
-            // TEST
-            string inPath = "C:\\Users\\tuman\\Desktop\\prices_export_20210812064812.xlsx";
-            string outPath = "C:\\Users\\tuman\\Desktop\\prices_export_20210812064812_new.xlsx";
-            ExcelPriceModel[] res = ReadFromExcelFile(inPath);
-            SaveToExcelFile(res, outPath);
-        }
+        static void Main() { }
 
-        public static ExcelPriceModel[] ReadFromExcelFile(string path) 
+        public static ExcelPriceModel[] ReadFromExcelFile(string path)
         {
             var workbook = new XLWorkbook(path);
             var worksheet = workbook.Worksheet(1);
@@ -43,23 +37,71 @@ namespace ExcellTableExportImport
                 rowLength++;
             }
 
-            ExcelPriceModel[] models = new ExcelPriceModel[columnLength+1];
+            ExcelPriceModel[] models = new ExcelPriceModel[columnLength + 1];
 
-            for (int i = 1; i <= columnLength; i++)
+            for (int i = 0; i < columnLength; i++)
             {
-                var currentRow = worksheet.Row(i);
+                var currentRow = worksheet.Row(i + 1);
 
-                ArrayList array = new ArrayList();
+                Dictionary<string, object> dict = new Dictionary<string, object>();
 
-                for (int j = 1; j <= rowLength; j++)
+                for (int j = 0; j < rowLength; j++)
                 {
-                    array.Add(currentRow.Cell(j));
+                    string columnName = worksheet.Row(1).Cell(j + 1).Value.ToString();
+                    string cellData = currentRow.Cell(j + 1).Value.ToString();
+
+                    switch (columnName)
+                    {
+                        case "Sale price":
+                        case "Min quantity":
+                        case "List price":
+                            if (!string.IsNullOrEmpty(cellData))
+                            {
+                                if (!cellData.Equals(columnName) & int.TryParse(cellData, out int value))
+                                {
+                                    dict.Add(columnName, value);
+                                }
+
+                                else dict.Add(columnName, cellData);
+                            }
+                            else dict.Add(columnName, "");
+
+                            break;
+
+                        case "Modified":
+                        case "Valid from":
+                        case "Valid to":
+                        case "Created date":
+                            if (!String.IsNullOrEmpty(cellData))
+                            {
+                                if (!cellData.Equals(columnName))
+                                {
+                                    string[] dateNtime = cellData.Split(" ");
+                                    string[] data = dateNtime[0].Split(".");
+                                    string[] time = dateNtime[1].Split(":");
+                                    DateTime dt = new DateTime(int.Parse(data[2]), int.Parse(data[1]), int.Parse(data[0]), int.Parse(time[0]), int.Parse(time[1]), 0);
+                                    dict.Add(columnName, dt);
+                                }
+                                else
+                                {
+                                    dict.Add(columnName, cellData);
+                                }
+                            }
+                            else dict.Add(columnName, "");
+                            break;
+
+                        default:
+                            try
+                            {
+                                dict.Add(columnName, cellData);
+                            }
+                            catch (System.ArgumentException) { }
+
+                            break;
+                    }
                 }
-
-                models[i] = new ExcelPriceModel(array);
-
+                models[i] = new ExcelPriceModel(dict);
             }
-
             return models;
         }
         public static void SaveToExcelFile(ExcelPriceModel[] priceModels, string path)
@@ -74,15 +116,53 @@ namespace ExcellTableExportImport
             {
                 if (model != null)
                 {
-                    foreach (var data in model.Array)
+                    foreach (var data in model.models)
                     {
-                        worksheet.Cell(row, column).Value = data;
+                        if ((data.Key.Equals("Modified") |
+                           data.Key.Equals("Valid from") | 
+                           data.Key.Equals("Valid to") | 
+                           data.Key.Equals("Created date")) 
+                           & !data.Key.Equals(data.Value))
+                        {
+                            if (DateTime.TryParse(data.Value.ToString(), out DateTime dt))
+                            {
+                                worksheet.Cell(row, column).Value = $"{dt.Day}.{dt.Month}.{dt.Year} {dt:HH:mm}";
+                            }
+                            else
+                            {
+                                worksheet.Cell(row, column).Value = data.Value;
+                            }
+                        }
+
+                        else if ((data.Key.Equals("List price") | 
+                            data.Key.Equals("Sale price") | 
+                            data.Key.Equals("Min quantity"))
+                            & !data.Key.Equals(data.Value))
+                        {
+                            if (decimal.TryParse(data.Value.ToString(), out decimal value))
+                            {
+                                worksheet.Cell(row, column).SetValue(value);
+                            }
+                        }
+                        else
+                        {
+                            worksheet.Cell(row, column).Value = data.Value;
+                        }
+
                         column++;
                     }
                     row++;
                     column = 1;
                 }
             }
+
+            var firstCell = worksheet.FirstCellUsed();
+            var lastCell = worksheet.LastCellUsed();
+            var range = worksheet.Range(firstCell.Address, lastCell.Address);
+            var table = range.CreateTable();
+
+            table.Theme = XLTableTheme.TableStyleLight13;
+
             worksheet.Columns().AdjustToContents();
             workbook.SaveAs(path);
         }

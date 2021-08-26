@@ -3,7 +3,13 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <AssemblyName>ExcelTableExportImport</AssemblyName>
+    <RootNamespace>ExcelTableExportImport</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="C:\Users\tuman\source\repos\ExcelTableExportImport\Program.cs" Link="Program.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.95.4" />
