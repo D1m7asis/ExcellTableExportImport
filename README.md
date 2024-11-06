@@ -1,2 +1,3 @@
-# ExcellTableExportImport
-This code can export and import the Excel tables for on-fly editing
+# Тестовое задание на стажировку в VirtoCommerce
+
+Позволяет выполнять функции импорта и экспорта Excel файлов с БД
